@@ -1,0 +1,15 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}debian:11
+
+RUN apt update \
+ && apt install -y \
+        python \
+        python3 \
+        tcsh make \
+        gcc gfortran g++ \
+        flex bison patch wget bc \
+        libzip-dev xorg-dev libbz2-dev \
+        rsync openssh-client
+
+# reconfigure dash to bash
+#RUN ln -sf /bin/bash /bin/sh

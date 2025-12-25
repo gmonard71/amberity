@@ -1,0 +1,15 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}rockylinux:9
+
+RUN yum -y update \
+ && yum -y install tcsh make \
+                   gcc gcc-gfortran gcc-c++ \
+                   which flex bison patch bc \
+                   libXt-devel libXext-devel \
+                   perl perl-ExtUtils-MakeMaker util-linux diffutils wget \
+                   bzip2 bzip2-devel zlib-devel \
+                   python3 rsync \
+                   openssh openssh-clients
+
+# make python3 the default python
+RUN ln -sf /usr/bin/python3 /usr/bin/python

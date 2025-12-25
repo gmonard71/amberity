@@ -1,0 +1,17 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Paris
+RUN  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+     apt-get update && apt-get install -y \
+        python \
+        python3 \
+        tcsh make \
+        gcc gfortran g++ \
+        flex bison patch wget \
+        bc xorg-dev libbz2-dev \
+        rsync openssh-client
+
+# reconfigure dash to bash
+#RUN ln -sf /bin/bash /bin/sh

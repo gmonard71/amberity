@@ -1,0 +1,32 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}fedora:40
+
+RUN dnf -y update \
+ && dnf -y install tcsh make \
+                   gcc gcc-gfortran gcc-c++ \
+                   which flex bison patch bc \
+                   libXt-devel libXext-devel \
+                   perl util-linux diffutils wget \
+                   bzip2 bzip2-devel zlib-devel \
+                   python3 python2 rsync openssh openssh-clients hostname
+
+#                   hostname openmpi openmpi-devel environment-modules \
+## manually apply the /usr/share/modulefiles/mpi/openmpi-x86_64 module file
+#ENV PATH=/usr/lib64/openmpi/bin:$PATH
+#ENV LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH
+#ENV PKG_CONFIG_PATH=/usr/lib64/openmpi/lib/pkgconfig:$PKG_CONFIG_PATH
+#ENV MANPATH=/usr/share/man/openmpi-x86_64:$MANPATH
+
+#ENV MPI_BIN=/usr/lib64/openmpi/bin
+#ENV MPI_SYSCONFIG=/etc/openmpi-x86_64
+#ENV MPI_FORTRAN_MOD_DIR=/usr/lib64/gfortran/modules/openmpi
+#ENV MPI_INCLUDE=/usr/include/openmpi-x86_64
+#ENV MPI_LIB=/usr/lib64/openmpi/lib
+#ENV MPI_MAN=/usr/share/man/openmpi-x86_64
+#ENV MPI_PYTHON_SITEARCH=/usr/lib64/python2.7/site-packages/openmpi
+#ENV MPI_PYTHON2_SITEARCH=/usr/lib64/python2.7/site-packages/openmpi
+#ENV MPI_PYTHON3_SITEARCH=/usr/lib64/python3.7/site-packages/openmpi
+#ENV MPI_COMPILER=openmpi-x86_64
+#ENV MPI_SUFFIX=openmpi
+#ENV MPI_HOME=/usr/lib64/openmpi
+

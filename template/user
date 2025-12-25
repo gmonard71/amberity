@@ -1,0 +1,10 @@
+COPY amber-image-release /etc
+
+RUN groupadd -g 1096 -r amber && useradd -u 1096 --no-log-init -r -g amber amber
+
+RUN chown amber:amber /opt
+
+USER amber:amber
+
+ENV PATH=/app/amber24_src/bin:/app/amber24_src/miniconda/bin:$PATH
+ENV LD_LIBRARY_PATH=/app/amber24_src/lib:/app/amber24_src/miniconda/lib:$LD_LIBRARY_PATH

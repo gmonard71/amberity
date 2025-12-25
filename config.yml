@@ -1,0 +1,249 @@
+docker:
+  path: docker
+  build_cmd: build
+  # private docker repo and proxy information can be added:
+  #build_cmd: build --build-arg http_proxy='MYPROXY_INFORMATION' --build-arg https_proxy='MYPROXY_INFORMATION' --build-arg DOCKER_HUB='PRIVATE_DOCKER_HUB_ADDRESS'
+  save_cmd: save
+
+singularity:
+  path: singularity
+  build_cmd: build -F
+  exec_cmd: exec
+  # behind a proxy:
+  #exec_cmd: exec --env http_proxy='MYPROXY_INFORMATION' --env https_proxy='MYPROXY_INFORMATION' 
+  shell_cmd: shell
+
+# update_amber proxy info:
+#proxy:
+
+# number of cores to allow for 'make install'
+ncpus: 8
+
+# where the container images will be stored
+images_root: images
+
+# working directory (where amber source and compilation will be performed)
+work_dir:
+
+# source code for Amber (will be cloned into work_dir for each container)
+source_dir:
+
+# miniconda install, if exists:
+#miniconda_dir:
+
+# default glocal config setup:
+compiler: gnu
+openmp: true
+mpi: false
+cuda: false
+do_parallel: openmpi
+
+# list of images:
+images:
+# deprecated
+# - name: centos-7
+#   path: images/docker/amber-centos-7.img.bz2
+#   type: docker
+#   # override compiler and such:
+#   compiler: gnu
+#   openmp: true
+#   mpi: false 
+#   cuda: false
+
+# - name: centos-7
+#   path: images/singularity/amber-centos-7.sif
+#   type: singularity
+
+# - name: centos-8
+#   path: images/docker/amber-centos-8.img.bz2
+#   type: docker
+
+# - name: centos-8
+#   path: images/singularity/amber-centos-8.sif
+#   type: singularity
+
+# deprecated
+# - name: debian-9
+#   path: images/docker/amber-debian-9.img.bz2
+#   type: docker
+
+# - name: debian-9
+#   path: images/singularity/amber-debian-9.sif
+#   type: singularity
+
+  - name: debian-11
+    path: images/docker/amber-debian-11.img.bz2
+    type: docker
+
+  - name: debian-11
+    path: images/singularity/amber-debian-11.sif
+    type: singularity
+
+  - name: debian-12
+    path: images/docker/amber-debian-12.img.bz2
+    type: docker
+
+  - name: debian-12
+    path: images/singularity/amber-debian-12.sif
+    type: singularity
+
+  - name: fedora-40
+    path: images/docker/amber-fedora-40.img.bz2
+    type: docker
+
+  - name: fedora-40
+    path: images/singularity/amber-fedora-40.sif
+    type: singularity
+
+  - name: fedora-41
+    path: images/docker/amber-fedora-41.img.bz2
+    type: docker
+
+  - name: fedora-41
+    path: images/singularity/amber-fedora-41.sif
+    type: singularity
+
+  - name: intel-oneapi-2024.0
+    path: images/docker/amber-intel-oneapi-2024.0.img.bz2
+    type: docker
+    compiler: intel
+    do_parallel: intelmpi
+
+  - name: intel-oneapi-2024.0
+    path: images/singularity/amber-intel-oneapi-2024.0.sif
+    type: singularity
+    compiler: intel
+    do_parallel: intelmpi
+
+  - name: amd-aocc-4.2
+    path: images/docker/amber-amd-aocc-4.2.imz.bz2
+    type: docker
+    compiler: clang
+
+  - name: amd-aocc-4.2
+    path: images/singularity/amber-amd-aocc-4.2.sif
+    type: singularity
+    compiler: clang
+
+  - name: amd-aocc-5.0
+    path: images/docker/amber-amd-aocc-5.0.imz.bz2
+    type: docker
+    compiler: clang
+
+  - name: amd-aocc-5.0
+    path: images/singularity/amber-amd-aocc-5.0.sif
+    type: singularity
+    compiler: clang
+
+  - name: opensuse-15.5
+    path: images/docker/amber-opensuse-15.5.img.bz2
+    type: docker
+
+  - name: opensuse-15.5
+    path: images/singularity/amber-opensuse-15.5.sif
+    type: singularity
+
+  - name: opensuse-15.6
+    path: images/docker/amber-opensuse-15.6.img.bz2
+    type: docker
+
+  - name: opensuse-15.6
+    path: images/singularity/amber-opensuse-15.6.sif
+    type: singularity
+
+  - name: rockylinux-8
+    path: images/docker/amber-rockylinux-8.img.bz2
+    type: docker
+
+  - name: rockylinux-8
+    path: images/singularity/amber-rockylinux-8.sif
+    type: singularity
+
+  - name: rockylinux-9
+    path: images/docker/amber-rockylinux-9.img.bz2
+    type: docker
+
+  - name: rockylinux-9
+    path: images/singularity/amber-rockylinux-9.sif
+    type: singularity
+
+  - name: ubuntu-20.04
+    path: images/docker/amber-ubuntu-20.04.img.bz2
+    type: docker
+
+  - name: ubuntu-20.04
+    path: images/singularity/amber-ubuntu-20.04.sif
+    type: singularity
+
+  - name: ubuntu-22.04
+    path: images/docker/amber-ubuntu-22.04.img.bz2
+    type: docker
+
+  - name: ubuntu-22.04
+    path: images/singularity/amber-ubuntu-22.04.sif
+    type: singularity
+
+  - name: ubuntu-24.04
+    path: images/docker/amber-ubuntu-24.04.img.bz2
+    type: docker
+
+  - name: ubuntu-24.04
+    path: images/singularity/amber-ubuntu-24.04.sif
+    type: singularity
+
+  - name: jenkins-cpu
+    path: images/docker/amber-jenkins-cpu.img.bz2
+    type: docker
+
+  - name: jenkins-cpu
+    path: images/singularity/amber-jenkins-cpu.sif
+    type: singularity
+
+  - name: jenkins-gpu
+    path: images/docker/amber-jenkins-gpu.img.bz2
+    type: docker
+
+  - name: jenkins-gpu
+    path: images/singularity/amber-jenkins-gpu.sif
+    type: singularity
+    cuda: true
+
+  - name: cuda-11.8-rockylinux8
+    path: images/docker/amber-cuda-11.8-rockylinux8.img.bz2
+    type: docker
+    cuda: true
+
+  - name: cuda-11.8-rockylinux8
+    path: images/singularity/amber-cuda-11.8-rockylinux8.sif
+    type: singularity
+    cuda: true
+
+  - name: cuda-11.8-ubuntu20.04
+    path: images/docker/amber-cuda-11.8-ubuntu20.04.img.bz2
+    type: docker
+    cuda: true
+
+  - name: cuda-11.8-ubuntu20.04
+    path: images/singularity/amber-cuda-11.8-ubuntu20.04.sif
+    type: singularity
+    cuda: true
+
+  - name: cuda-12.6-rockylinux9
+    path: images/docker/amber-cuda-12.6-rockylinux9.img.bz2
+    type: docker
+    cuda: true
+
+  - name: cuda-12.6-rockylinux9
+    path: images/singularity/amber-cuda-12.6-rockylinux9.sif
+    type: singularity
+    cuda: true
+
+  - name: cuda-12.6-ubuntu24.04
+    path: images/docker/amber-cuda-12.6-ubuntu24.04.img.bz2
+    type: docker
+    cuda: true
+
+  - name: cuda-12.6-ubuntu24.04
+    path: images/singularity/amber-cuda-12.6-ubuntu24.04.sif
+    type: singularity
+    cuda: true

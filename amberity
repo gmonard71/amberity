@@ -1,0 +1,589 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+import os
+import shutil
+import sys
+import yaml
+import datetime
+
+miniconda_container_location='/usr/local/miniconda'
+amber_version='amber24'
+amber_source=amber_version+'_src'
+do_parallel_setup = {
+  'openmpi': 'mpirun -np 2 --mca btl self,tcp --oversubscribe',
+  'intelmpi': 'mpirun -np 2',
+  }
+
+
+rootparser = argparse.ArgumentParser(description='Build Amber(Tools) using containers',
+                                 usage='%(prog)s [-h] [--docker|--singularity] [...]')
+
+# Choice of container: docker or singularity (exclusive)
+section = rootparser.add_argument_group(title='Containers: choose one of the following container provider')
+group = section.add_mutually_exclusive_group()
+group.add_argument('-D','--docker',action='store_true', #nargs=1,metavar='IMAGE:TAG',
+                   help='Use the docker as the container medium')
+group.add_argument('-S','--singularity',action='store_true', #nargs=1,metavar='SIF_FILE',
+                   help='Use the singularity as the container medium')
+section.add_argument('-n','--dry-run',action='store_true',
+                     help='Perform a trial run with no changes made')
+section.add_argument('-v','--verbose',action='store_true',
+                     help='Increase verbosity')
+
+section.add_argument('-l','--log',nargs=1,
+                     help='Log all outputs to the logfile')
+
+# Configuration file
+section = rootparser.add_argument_group(title='Configuration')
+section.add_argument('-c','--config',nargs=1,
+                   help='Location of the configuration file (default: config.yml in the directory where amberity resides)')
+
+# Subsections: image, container
+rootSubsections = rootparser.add_subparsers(metavar='')
+# Image subsection
+# - image list [all|image_name]
+# - image build image_name
+imageSection = rootSubsections.add_parser('image',help='Image management')
+imageSubsections = imageSection.add_subparsers(metavar='') #help='Image list section',metavar='[list]')
+imageList = imageSubsections.add_parser('list',help='list the containers (default: all)')
+imageList_arg  = imageList.add_argument('list',default='all',nargs='?')
+imageBuild = imageSubsections.add_parser('build',help='build a specific container (no default)')
+imageBuild_arg  = imageBuild.add_argument('build',nargs=1) #action='store_true')
+imageAvail = imageSubsections.add_parser('avail',help='list available containers')
+imageAvail_arg  = imageAvail.add_argument('avail',default='all',nargs='?')
+
+# Container subsection
+containerSection = rootSubsections.add_parser('container',help='Container management')
+containerName = containerSection.add_argument('container',nargs=1)
+containerAction = containerSection.add_argument('actions',nargs='+',help="valid actions: help, shell, cudashell, exec, cudaexec, clone, update, clean, cmake, configure ('old' configure setup), build|install, build_configure|install_configure (build after configure), test.serial, test.openmp, test.parallel|test.mpi, test.cuda.serial, test.cuda.parallel, install.openmpi, report")
+
+#containerSubsections = containerSection.add_subparsers(metavar='')
+#containerAction = containerSubsections.add_parser('actions',help='list of actions')
+
+class Global(object):
+    def __repr__(self):
+        mystr = ""
+        for key in self.__dict__:
+            mystr += "{}: {}\n".format(key,self.__dict__[key])
+        return mystr
+
+    def toYaml(self):
+        thedict = {}
+        for key in self.__dict__:
+            thedict[key] = self.__dict__[key]
+        return thedict
+
+    def fromYaml(self,yamlDict):
+        for key in self.__dict__:
+            if key in yamlDict: self.__dict__[key] = yamlDict[key]
+
+
+class Docker(Global):
+    def __init__(self):
+        self.path = 'docker'
+        self.build_cmd = 'build'
+        self.save_cmd = 'save'
+
+    def build(self,target):
+        # mkdir .source
+        # mkdir $(dirname $(path))
+        build_dir = os.path.dirname(os.path.abspath(target.path))
+        if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
+        if not os.path.exists('.source') and not args.dry_run: os.makedirs('.source')
+        update=False
+        dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
+        if not os.path.exists(target.path):
+            update=True
+        else:
+            for depend in dependencies:
+                if os.path.getmtime(depend) > os.path.getmtime(target.path):
+                   #print("{} > {}".format(depend,target.path))
+                    update=True
+        if update:
+            # save the name of the container (will be later present as /etc/amber-image-release)
+            if not args.dry_run:
+                with open(os.path.join('.source','amber-image-release'),'w') as f:
+                    f.write("{}\n".format(target.name))
+            # create the container
+            command1="cat {dependencies} | {docker} {build_cmd} -t amber-{name}:latest -f- .source".format(dependencies=" ".join(dependencies),
+                docker=self.path,
+                build_cmd=self.build_cmd,
+                name=target.name)
+            if args.verbose: print("Executing:\n   {}".format(command1))
+            if args.dry_run:
+                print(command1)
+            else:
+                subprocess.run(command1,check=True,shell=True)
+            # save the container to a file
+            command2="{docker} {save_cmd} amber-{name}:latest | lbzip2 > {path}".format(docker=self.path,
+                save_cmd=self.save_cmd,
+                name=target.name,
+                path=target.path)
+            if args.verbose: print("Executing:\n   {}".format(command2))
+            if args.dry_run:
+                print(command2)
+            else:
+                subprocess.run(command2,check=True,shell=True)
+        else:
+            print("target {} is up to date".format(target.path))
+
+class Singularity(Global):
+    def __init__(self):
+        self.path = 'singularity'
+        self.build_cmd = 'build -F'
+        self.exec_cmd = 'exec'
+        self.shell_cmd = 'shell'
+
+    def build(self,target):
+        # mkdir $(dirname $(path))
+        build_dir = os.path.dirname(os.path.abspath(target.path))
+        if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
+        update=False
+        dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
+        if not os.path.exists(target.path):
+            update=True
+        else:
+            for depend in dependencies:
+                if os.path.getmtime(depend) > os.path.getmtime(target.path):
+                   #print("{} > {}".format(depend,target.path))
+                    update=True
+        if update:
+            commands="{singularity} {build_cmd} {sif} docker-daemon://amber-{name}:latest".format(singularity=self.path,
+                build_cmd=self.build_cmd,
+                sif=target.path,
+                name=target.name)
+            if args.verbose: print("Executing:\n   {}".format(commands))
+            if args.dry_run:
+                print(commands)
+            else:
+                subprocess.run(commands,check=True,shell=True)
+        else:
+            print("target {} is up to date".format(target.path))
+
+class Config(Global):
+    def __init__(self):
+        self.images_root='images'
+        self.work_dir='work/amber21'
+        self.source_dir='source/amber21'
+        self.compiler='gnu'
+        self.openmp=False
+        self.mpi=False
+        self.do_parallel='openmpi'
+        self.cuda=False
+        self.x11=True
+        self.miniconda_dir=None
+        self.proxy=None
+        self.ncpus=1
+
+class Image(Global):
+    def __init__(self,defaultConfig):
+        self.name=None
+        self.type=None
+        self.path=None
+        default={
+           'compiler': 'gnu',
+           'openmp': False,
+           'mpi': False,
+           'cuda': False,
+           'x11': True,
+           'do_parallel': 'openmpi',
+        }
+        for key in default:
+            if key in defaultConfig:
+                # use the default config setup
+                self.__dict__[key] = defaultConfig[key]
+            else:
+                self.__dict__[key] = default[key]
+
+    def check(self):
+        # check existence, date of creation and size (if any)
+        if os.path.exists(self.path):
+            exists=True
+            date =  datetime.datetime.fromtimestamp(os.path.getctime(self.path)).strftime('%Y-%m-%d %H:%M:%S')
+            size = os.path.getsize(self.path)
+            unit='B'
+            if size > 1024: size, unit = size/1024, 'KB'
+            if size > 1024: size, unit = size/1024, 'MB'
+            if size > 1024: size, unit = size/1024, 'GB'
+            size='{:.2f}{}'.format(size,unit)
+        else:
+            exists=False
+            date=""
+            size=""
+        update=False
+        dependencies = [ 'os/{}'.format(self.name), 'template/cmake', 'template/user']
+        if not os.path.exists(self.path):
+            update=True
+        else:
+            for depend in dependencies:
+                if os.path.getmtime(depend) > os.path.getmtime(self.path):
+                    update=True
+        return exists, date, size, update
+
+class Images(list):
+    def load(self,config_file):
+        for image_spec in config_file['images']:
+            image = Image(defaultConfig=config_file)
+            image.fromYaml(image_spec)
+            self += [image]
+    def find(self,name,itype):
+        """find a container named 'name' for type 'itype' (docker or singularity)"""
+        if itype == 'singularity':
+            singularity_target=None
+            for image in images:
+                if image.name == name and image.type == 'singularity':
+                    singularity_target = image
+                    break
+            if singularity_target is None:
+                raise RuntimeError("\nCan't find a valid image definition for type(singularity) and name({}) in the configuration file".format(name))
+            return singularity_target
+        if itype == 'docker':
+            docker_target=None
+            for image in images:
+                if image.name == name and image.type == 'docker':
+                    docker_target = image
+                    break
+            if docker_target is None:
+                raise RuntimeError("\nCan't find a valid image definition for type(docker) and name({}) in the configuration file".format(name))
+            return docker_target
+        return None
+
+class Application(object):
+    def __init__(self,image,config=None,singularity=None,docker=None,logfile=None):
+        self.image = image
+        self.config = config
+        self.docker = docker
+        self.singularity = singularity
+        self.image.work_dir = os.path.join(self.config.work_dir,self.image.name)
+        if not os.path.exists(self.image.path):
+            raise RuntimeError('\nImage "{}" does not exit, please build the image first'.format(self.image.name))
+        self.amber_root = '/app'
+        if logfile is not None:
+            logdir=os.path.dirname(os.path.abspath(logfile))
+            if not args.dry_run:
+                if not os.path.exists(logdir): os.makedirs(logdir)
+                self.log = open(logfile,'w')
+                self.logerr = subprocess.STDOUT
+            else:
+                self.log=None
+                self.logerr=None
+        else:
+            self.log=None
+            self.logerr=None
+
+    def apply(self,action):
+        valid_action = {'help':   self.appHelp,
+                        'shell':  self.appShell,
+                        'cudashell':  self.appCudaShell,
+                        'exec':  self.appExec,
+                        'cudaexec':  self.appCudaExec,
+                        'clone':  self.appClone,
+                        'update': self.appUpdate,
+                        'clean':  self.appClean,
+                        'cmake':  self.appCmake,
+                        'configure': self.appConfigure,
+                        'build':  self.appBuild,
+                        'install':  self.appBuild,
+                        'build_configure':  self.appOldBuild,
+                        'install_configure':  self.appOldBuild,
+                        'test.serial':  self.appTestSerial,
+                        'test.openmp':  self.appTestOpenMP,
+                        'test.mpi':  self.appTestParallel,
+                        'test.parallel':  self.appTestParallel,
+                        'test.cuda.serial':  self.appTestCudaSerial,
+                        'test.cuda.parallel':  self.appTestCudaParallel,
+                        'install.openmpi': self.appInstallOpenMPI,
+                        'report': self.appReport,
+                       }
+        if action not in valid_action:
+            raise RuntimeError('\naction "{}" is not a valid action.\nValid actions are {}'.format(action,',\n\t'.join(sorted(list(valid_action)))))
+        valid_action[action]()
+
+    def appHelp(self):
+        print("""Available actions:
+- help
+- shell
+- cudashell
+- exec
+- cudaexec
+- clone
+- update
+- clean
+- cmake
+- configure ("old" configure setup)
+- build|install
+- build_configure|install_configure (build after configure)
+- test.serial
+- test.openmp
+- test.parallel|test.mpi
+- test.cuda.serial
+- test.cuda.parallel
+- install.openmpi
+- report
+""")
+
+    def singularity_exec(self,thecommand,pwd=None,message=None,nvidia=False):
+        commands = "{singularity}".format(singularity=self.singularity.path)
+        commands += " {exec_cmd}".format(exec_cmd=self.singularity.exec_cmd)
+        if nvidia: commands += " --nv"
+        if pwd is not None: commands += " --cwd {pwd}".format(pwd=pwd)
+        commands += "  --bind {source_dir}:/src".format(source_dir=self.config.source_dir)
+        commands += "  --bind {work_dir}:{amber_root}".format(work_dir=self.image.work_dir,amber_root=self.amber_root)
+        if self.config.miniconda_dir is not None: commands += "  --bind {miniconda_dir}:{miniconda_local}".format(miniconda_dir=self.config.miniconda_dir,miniconda_local=miniconda_container_location)
+        commands += " {sif}".format(sif=self.image.path)
+        commands += " {thecommand}".format(thecommand=thecommand)
+       #if args.verbose: print("Executing:\n   {}".format(commands))
+        if args.verbose and message is not None: print(message)
+        if args.dry_run:
+            print(commands)
+        else:
+            subprocess.run(commands,check=True,shell=True,stdout=self.log,stderr=self.logerr)
+
+    def singularity_shell(self,message=None,nvidia=False):
+        commands = "{singularity}".format(singularity=self.singularity.path)
+        commands += " {shell_cmd}".format(shell_cmd=self.singularity.shell_cmd)
+        if nvidia: commands += " --nv"
+        commands += "  --bind {source_dir}:/src".format(source_dir=self.config.source_dir)
+        commands += "  --bind {work_dir}:{amber_root}".format(work_dir=self.image.work_dir,amber_root=self.amber_root)
+        if self.config.miniconda_dir is not None: commands += "  --bind {miniconda_dir}:{miniconda_local}".format(miniconda_dir=self.config.miniconda_dir,miniconda_local=miniconda_container_location)
+        commands += " {sif}".format(sif=self.image.path)
+       #if args.verbose: print("Executing:\n   {}".format(commands))
+        if args.verbose and message is not None: print(message)
+        if args.dry_run:
+            print(commands)
+        else:
+            subprocess.run(commands,check=False,shell=True)
+
+    def appClone(self):
+        message = 'Cloning...'
+        if not os.path.exists(self.image.work_dir) and not args.dry_run: os.makedirs(self.image.work_dir)
+        if self.image.type == 'singularity':
+            self.singularity_exec('mkdir -p {amber_root}/{amber_source}'.format(amber_root=self.amber_root,amber_source=amber_source))
+            self.singularity_exec('rsync -a --delete --exclude=.git /src/. {amber_root}/{amber_source}'.format(amber_root=self.amber_root,amber_source=amber_source),message=message)
+
+    def appUpdate(self):
+        message = "Updating amber..."
+        if self.config.proxy is None:
+            self.singularity_exec('./update_amber --update',pwd=os.path.join(self.amber_root,amber_source),message=message)
+        else:
+            self.singularity_exec('./update_amber --proxy={proxy} --update'.format(proxy=self.config.proxy),pwd=os.path.join(self.amber_root,amber_source),message=message)
+
+    def appClean(self):
+        message = 'Cleaning build directory...'
+        self.singularity_exec('./clean_build -f',pwd=os.path.join(self.amber_root,'build'),message=message)
+
+    def appCmake(self):
+        message = "Configuring with cmake..."
+        command = ''
+       #command = 'bash -c "'
+       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=amber_version)
+       #command += 'export LD_LIBRARY_PATH={miniconda_dir}/lib:$LD_LIBRARY_PATH && '.format(miniconda_dir=miniconda_container_location)
+        command += './configure_cmake.py --source {amber_root}/{amber_source} --prefix {amber_root}/{amber_version}'.format(amber_root=self.amber_root,amber_source=amber_source,amber_version=amber_version)
+        command += " --no-reaxff"
+        command += " --no-check-updates"
+        command += " --no-apply-updates"
+        command += " --compiler {}".format(self.image.compiler)
+        if self.image.openmp: command += " --openmp"
+        if self.image.mpi: command += " --mpi"
+        if self.image.cuda: command += " --cuda"
+        if not self.image.x11: command += " --no-gui"
+        if self.config.miniconda_dir is not None:
+            if not os.path.exists(os.path.join(self.config.miniconda_dir,'bin','python')):
+                raise RuntimeError("\nno python executable in '{}'".format(self.config.miniconda_dir))
+            command += " --no-miniconda --with-python {}".format(os.path.join(miniconda_container_location,'bin','python'))
+       #command +='"'
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source,'build'),message=message)
+
+    def appConfigure(self):
+        message = "Configuring with configure..."
+        command = ''
+       #command = 'bash -c "'
+       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=amber_version)
+       #command += 'export LD_LIBRARY_PATH={miniconda_dir}/lib:$LD_LIBRARY_PATH && '.format(miniconda_dir=miniconda_container_location)
+        command += "./configure"
+        if self.image.openmp: command += " -openmp"
+        if self.image.mpi: command += " -mpi"
+        if self.image.cuda: command += " -cuda"
+        command += " {compiler}".format(compiler=self.image.compiler)
+       #command +='"'
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source),message=message)
+
+    def appBuild(self):
+        message = "Building after cmake..."
+        command = "make VERBOSE=1 -j{ncpus} install".format(ncpus=self.config.ncpus)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source,'build'),message=message)
+
+    def appOldBuild(self):
+        message = "Building after configure..."
+        command = ''
+       #command = 'bash -c "'
+       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=amber_version)
+       #command += 'export LD_LIBRARY_PATH={miniconda_dir}/lib:$LD_LIBRARY_PATH && '.format(miniconda_dir=miniconda_container_location)
+        command += "make -j{ncpus} install".format(ncpus=self.config.ncpus)
+       #command +='"'
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source),message=message)
+
+    def appTestSerial(self):
+        message = "Testing serial..."
+        command = "bash -c 'source amber.sh; make test.serial'"
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+
+    def appTestOpenMP(self):
+        message = "Testing openmp..."
+        command = "bash -c 'source amber.sh; make test.openmp'"
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+
+    def appTestCudaSerial(self):
+        message = "Testing cuda serial..."
+        command = "bash -c 'source amber.sh; make test.cuda.serial'"
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message,nvidia=True)
+
+    def appTestParallel(self):
+        message = "Testing mpi..."
+        command = """bash -c 'source amber.sh; export DO_PARALLEL="{do_parallel}"; make test.parallel'""".format(do_parallel=do_parallel_setup[self.image.do_parallel])
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+
+    def appTestCudaParallel(self):
+        message = "Testing cuda parallel..."
+        command = """bash -c 'source amber.sh; export DO_PARALLEL="{do_parallel}"; make test.cuda.parallel'""".format(do_parallel=do_parallel_setup[self.image.do_parallel])
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message,nvidia=True)
+
+    def appInstallOpenMPI(self):
+        message = "Install openmpi..."
+        command = "./configure_openmpi -prefix {amber_root}/{amber_version} -np {ncpus} {compiler}".format(ncpus=self.config.ncpus,amber_root=self.amber_root,amber_version=amber_version,compiler=self.image.compiler)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source,'AmberTools','src'),message=message)
+
+    def appReport(self):
+        # copy create_report.py in the target installation directory
+        src='create_report.py'
+        target='{amber_root}/{amber_version}/bin'.format(amber_root=self.image.work_dir,amber_version=amber_version)
+        shutil.copy(src,target)
+        message = "Create report..."
+        command = "bash -c 'source amber.sh;{amber_root}/{amber_version}/bin/create_report.py {image} {amber_root}/{amber_source} {amber_root}/{amber_version} {compiler}'".format(image=self.image.name,
+            amber_root=self.amber_root,
+            amber_source=amber_source,
+            amber_version=amber_version,
+            compiler=self.image.compiler)
+       #command = "ls -l {amber_root}/{amber_version}/bin/create_report.py".format(amber_root=self.amber_root,
+       #    amber_version=amber_version)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+
+    def appShell(self,nvidia=False):
+        message = "Entering shell... (type 'exit' to quit)"
+        if not os.path.exists(self.image.work_dir) and not args.dry_run: os.makedirs(self.image.work_dir)
+        if self.image.type == 'singularity':
+            self.singularity_shell(message=message,nvidia=nvidia)
+
+    def appCudaShell(self):
+        self.appShell(nvidia=True)
+
+    def appExec(self,args,nvidia=False):
+        command = " ".join(args)
+        message = "Executing command... {}".format(command)
+        self.singularity_exec(command,message=message,nvidia=nvidia)
+
+    def appCudaExec(self,args):
+        self.appExec(args,nvidia=True)
+
+rootparser.set_defaults(avail=None,list=None,build=None,container=None)
+args = rootparser.parse_args()
+# go to the directory where amberity is located (everything is relative to there)
+os.chdir(os.path.normpath(os.path.abspath(os.path.dirname(__file__))))
+
+if args.log is None:
+    logfile=None
+else:
+    logfile=args.log[0]
+
+# read config file
+if args.config is None:
+    config_path = os.path.normpath(os.path.abspath('config.yml'))
+else:
+    config_path = os.path.normpath(os.path.abspath(args.config[0]))
+if not os.path.exists(config_path):
+    raise RuntimeError("\nConfiguration file {} does not exist".format(config_path))
+with open(config_path) as f:
+    config_file = yaml.load(f,Loader=yaml.Loader)
+
+# setup configuration (override default with the config file)
+config=Config()
+docker=Docker()
+singularity=Singularity()
+config.fromYaml(config_file)
+if 'docker' in config_file: docker.fromYaml(config_file['docker'])
+if 'singularity' in config_file: singularity.fromYaml(config_file['singularity'])
+# read image definitions
+images=Images()
+images.load(config_file)
+
+if args.list is not None:
+    # amberity image list <...>
+    frmt = "{:<30s} {:>15s} {:>10s} {:>30s} {:>15s} {:>10s}"
+    print(frmt.format("IMAGE_NAME","TYPE","EXISTS?","CREATED_AT","SIZE", "UP-TO-DATE"))
+    if args.list == 'all':
+        for image in images:
+            exists, date, size, update = image.check()
+            process=True
+            if args.docker and image.type != 'docker': process=False
+            if args.singularity and image.type != 'singularity': process=False
+            if process: print(frmt.format(image.name,image.type,str(exists),date,size,str(not update)))
+    else:
+        for image in images:
+            if image.name == args.list:
+                exists, date, size, update = image.check()
+                print(frmt.format(image.name,image.type,str(exists),date,size,str(not update)))
+elif args.build is not None:
+    # amberity image build <...>
+    if args.docker is False and args.singularity is False:
+        raise RuntimeError("\na container image should be provided using either the --docker or --singularity argument")
+    elif args.singularity:
+        singularity_target = images.find(args.build[0],'singularity')
+        docker_target = images.find(args.build[0],'docker')
+        docker.build(docker_target)
+        singularity.build(singularity_target)
+    elif args.docker:
+        docker_target = images.find(args.build[0],'docker')
+        docker.build(docker_target)
+elif args.avail is not None:
+    # amberity image avail <...>
+    if args.avail == 'all':
+        for image in images:
+            exists, date, size, update = image.check()
+            process=True
+            if args.docker and image.type != 'docker': process=False
+            if args.singularity and image.type != 'singularity': process=False
+            if process and exists: print(image.name)
+    else:
+        for image in images:
+            if image.name == args.avail:
+                process=True
+                exists, date, size, update = image.check()
+                if args.docker and image.type != 'docker': process=False
+                if args.singularity and image.type != 'singularity': process=False
+                if process:
+                    if exists:
+                        print(image.name)
+                    else:
+                        print("image not available")
+elif args.container is not None:
+    container = args.container[0]
+    if args.docker is False and args.singularity is False:
+        raise RuntimeError("\na container image should be provided using either the --docker or --singularity argument")
+    if args.docker:
+        docker_target = images.find(container,'docker')
+        app = Application(docker_target,docker=docker,config=config,logfile=logfile)
+    if args.singularity:
+        singularity_target = images.find(container,'singularity')
+        app = Application(singularity_target,singularity=singularity,config=config,logfile=logfile)
+    if args.actions[0] == 'exec':
+            app.appExec(args.actions[1:])
+    elif args.actions[0] == 'cudaexec':
+            app.appCudaExec(args.actions[1:])
+    else:
+        for action in args.actions:
+            app.apply(action)
+else:
+    print('Nothing done...')
+

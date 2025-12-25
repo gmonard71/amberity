@@ -1,0 +1,17 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}nvcr.io/nvidia/cuda:12.6.2-devel-rockylinux9
+
+RUN yum -y update \
+ && yum -y install tcsh make \
+                   gcc gcc-gfortran gcc-c++ \
+                   which patch bc \
+                   bison flex libXt-devel libXext-devel \
+                   perl perl-ExtUtils-MakeMaker util-linux diffutils wget \
+                   bzip2 bzip2-devel zlib-devel \
+                   python3 python rsync \
+                   openssh openssh-clients
+
+# make python3 the default python
+# RUN ln -sf /usr/bin/python3 /usr/bin/python
+
+ENV CUDA_HOME=/usr/local/cuda

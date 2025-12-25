@@ -1,0 +1,15 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}opensuse/leap:15.5
+
+RUN zypper -n install tcsh \
+                      gcc gcc-fortran gcc-c++ \
+                      which patch make \
+                      libtool flex bison wget \
+                      gzip bzip2 bc \
+                      xorg-x11-devel \
+                      python3 rsync openssh hostname
+
+
+#                      openmpi3 openmpi3-devel \
+#ENV    source /usr/lib64/mpi/gcc/openmpi3/bin/mpivars.sh
+

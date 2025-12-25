@@ -1,0 +1,25 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}intel/oneapi-hpckit:2025.2.2-0-devel-ubuntu22.04
+
+RUN wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
+    gpg --dearmor | \
+    tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
+    echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | \
+    tee /etc/apt/sources.list.d/oneAPI.list && \
+    wget -O- https://repositories.intel.com/gpu/intel-graphics.key | \
+    gpg --dearmor --yes --output /usr/share/keyrings/intel-graphics-archive-keyring.gpg
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Paris
+RUN  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+     apt-get update && apt-get install -y \
+        python3 python-is-python3 \
+        tcsh make \
+        gcc gfortran g++ \
+        flex bison patch wget \
+        bc xorg-dev libbz2-dev \
+        rsync openssh-client \
+        zlib1g zlib1g-dev zip bzip2 gzip
+
+# reconfigure dash to bash
+#RUN ln -sf /bin/bash /bin/sh
