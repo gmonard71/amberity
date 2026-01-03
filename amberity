@@ -9,7 +9,7 @@ import yaml
 import datetime
 
 miniconda_container_location='/usr/local/miniconda'
-amber_version='amber24'
+amber_version='ambertools25'
 amber_source=amber_version+'_src'
 do_parallel_setup = {
   'openmpi': 'mpirun -np 2 --mca btl self,tcp --oversubscribe',
@@ -372,7 +372,7 @@ class Application(object):
 
     def appClean(self):
         message = 'Cleaning build directory...'
-        self.singularity_exec('./clean_build -f',pwd=os.path.join(self.amber_root,'build'),message=message)
+        self.singularity_exec('./clean_build -f',pwd=os.path.join(self.amber_root,amber_source,'build'),message=message)
 
     def appCmake(self):
         message = "Configuring with cmake..."
@@ -457,18 +457,19 @@ class Application(object):
 
     def appReport(self):
         # copy create_report.py in the target installation directory
-        src='create_report.py'
-        target='{amber_root}/{amber_version}/bin'.format(amber_root=self.image.work_dir,amber_version=amber_version)
+        src='create_json_report.py'
+        target='{amber_root}/{amber_source}/build'.format(amber_root=self.image.work_dir,amber_source=amber_source)
         shutil.copy(src,target)
         message = "Create report..."
-        command = "bash -c 'source amber.sh;{amber_root}/{amber_version}/bin/create_report.py {image} {amber_root}/{amber_source} {amber_root}/{amber_version} {compiler}'".format(image=self.image.name,
+        command = "bash -c 'source {amber_root}/{amber_version}/amber.sh;{amber_root}/{amber_source}/build/create_json_report.py {image} {amber_root}/{amber_source} {amber_root}/{amber_version} {compiler}'".format(image=self.image.name,
             amber_root=self.amber_root,
             amber_source=amber_source,
             amber_version=amber_version,
             compiler=self.image.compiler)
        #command = "ls -l {amber_root}/{amber_version}/bin/create_report.py".format(amber_root=self.amber_root,
        #    amber_version=amber_version)
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+       #self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+        self.singularity_exec(command,message=message)
 
     def appShell(self,nvidia=False):
         message = "Entering shell... (type 'exit' to quit)"
