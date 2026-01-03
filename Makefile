@@ -2,7 +2,6 @@
 AMBERITY=./amberity --singularity
 IMAGES_ROOT=
 WORK_DIR=
-BASE=amber24_src
 #DRYRUN=echo
 DRYRUN=
 
