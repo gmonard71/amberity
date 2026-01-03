@@ -1,5 +1,5 @@
 ARG DOCKER_HUB=""
-FROM ${DOCKER_HUB}intel/oneapi-hpckit:2025.2.2-0-devel-ubuntu22.04
+FROM ${DOCKER_HUB}intel/oneapi-hpckit:2024.0.1-devel-ubuntu22.04
 
 RUN wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
     gpg --dearmor | \

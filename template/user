@@ -6,5 +6,5 @@ RUN chown amber:amber /opt
 
 USER amber:amber
 
-ENV PATH=/app/amber24_src/bin:/app/amber24_src/miniconda/bin:$PATH
-ENV LD_LIBRARY_PATH=/app/amber24_src/lib:/app/amber24_src/miniconda/lib:$LD_LIBRARY_PATH
+ENV PATH=/app/local/bin:/app/local/miniconda/bin:$PATH
+ENV LD_LIBRARY_PATH=/app/local/lib:/app/local/miniconda/lib:$LD_LIBRARY_PATH

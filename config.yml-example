@@ -50,27 +50,6 @@ images:
 #   mpi: false 
 #   cuda: false
 
-# - name: centos-7
-#   path: images/singularity/amber-centos-7.sif
-#   type: singularity
-
-# - name: centos-8
-#   path: images/docker/amber-centos-8.img.bz2
-#   type: docker
-
-# - name: centos-8
-#   path: images/singularity/amber-centos-8.sif
-#   type: singularity
-
-# deprecated
-# - name: debian-9
-#   path: images/docker/amber-debian-9.img.bz2
-#   type: docker
-
-# - name: debian-9
-#   path: images/singularity/amber-debian-9.sif
-#   type: singularity
-
   - name: debian-11
     path: images/docker/amber-debian-11.img.bz2
     type: docker
