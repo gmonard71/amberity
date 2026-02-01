@@ -10,7 +10,8 @@ import datetime
 
 miniconda_container_location='/usr/local/miniconda'
 do_parallel_setup = {
-  'openmpi': 'mpirun -np 2 --mca btl self,tcp --oversubscribe',
+ #'openmpi': 'mpirun -np 2 --mca btl self,tcp --oversubscribe',
+  'openmpi': 'mpirun -np 2 --oversubscribe',
   'intelmpi': 'mpirun -np 2',
   }
 
@@ -49,6 +50,8 @@ imageList = imageSubsections.add_parser('list',help='list the containers (defaul
 imageList_arg  = imageList.add_argument('list',default='all',nargs='?')
 imageBuild = imageSubsections.add_parser('build',help='build a specific container (no default)')
 imageBuild_arg  = imageBuild.add_argument('build',nargs=1) #action='store_true')
+imageSave = imageSubsections.add_parser('save',help='save a specific container (no default)')
+imageSave_arg  = imageSave.add_argument('save',nargs=1)
 imageAvail = imageSubsections.add_parser('avail',help='list available containers')
 imageAvail_arg  = imageAvail.add_argument('avail',default='all',nargs='?')
 
@@ -127,6 +130,35 @@ class Docker(Global):
         else:
             print("target {} is up to date".format(target.path))
 
+    def save(self,target):
+        # mkdir .source
+        # mkdir $(dirname $(path))
+        build_dir = os.path.dirname(os.path.abspath(target.path))
+        if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
+        if not os.path.exists('.source') and not args.dry_run: os.makedirs('.source')
+        update=False
+        dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
+        if not os.path.exists(target.path):
+            update=True
+        else:
+            for depend in dependencies:
+                if os.path.getmtime(depend) > os.path.getmtime(target.path):
+                   #print("{} > {}".format(depend,target.path))
+                    update=True
+        if update:
+            # save the container to a file
+            command2="{docker} {save_cmd} amber-{name}:latest | lbzip2 > {path}".format(docker=self.path,
+                save_cmd=self.save_cmd,
+                name=target.name,
+                path=target.path)
+            if args.verbose: print("Executing:\n   {}".format(command2))
+            if args.dry_run:
+                print(command2)
+            else:
+                subprocess.run(command2,check=True,shell=True)
+        else:
+            print("target {} is up to date".format(target.path))
+
 class Singularity(Global):
     def __init__(self):
         self.path = 'singularity'
@@ -166,12 +198,15 @@ class Config(Global):
         self.work_dir='work/amber21'
         self.source_dir='source/amber21'
         self.amber_version='amber21'
+        self.pmemd_only=False
         self.compiler='gnu'
         self.openmp=False
         self.mpi=False
         self.do_parallel='openmpi'
         self.cuda=False
         self.x11=True
+        self.quick=True
+        self.miniconda=True
         self.miniconda_dir=None
         self.proxy=None
         self.ncpus=1
@@ -187,6 +222,7 @@ class Image(Global):
            'mpi': False,
            'cuda': False,
            'x11': True,
+           'quick': True,
            'do_parallel': 'openmpi',
         }
         for key in default:
@@ -390,10 +426,15 @@ class Application(object):
         if self.image.mpi: command += " --mpi"
         if self.image.cuda: command += " --cuda"
         if not self.image.x11: command += " --no-gui"
-        if self.config.miniconda_dir is not None:
-            if not os.path.exists(os.path.join(self.config.miniconda_dir,'bin','python')):
-                raise RuntimeError("\nno python executable in '{}'".format(self.config.miniconda_dir))
-            command += " --no-miniconda --with-python {}".format(os.path.join(miniconda_container_location,'bin','python'))
+        if self.config.pmemd_only: command += " --pmemd-only"
+        if not self.image.quick: command += " --no-quick"
+        if self.config.miniconda:
+            if self.config.miniconda_dir is not None:
+                if not os.path.exists(os.path.join(self.config.miniconda_dir,'bin','python')):
+                    raise RuntimeError("\nno python executable in '{}'".format(self.config.miniconda_dir))
+                command += " --no-miniconda --with-python {}".format(os.path.join(miniconda_container_location,'bin','python'))
+        else:
+            command += " --no-python"
        #command +='"'
         self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_source,'build'),message=message)
 
@@ -453,12 +494,12 @@ class Application(object):
 
     def appInstallOpenMPI(self):
         message = "Install openmpi..."
-        command = "./configure_openmpi -prefix {amber_root}/{amber_version} -np {ncpus} {compiler}".format(ncpus=self.config.ncpus,amber_root=self.amber_root,amber_version=self.amber_version,compiler=self.image.compiler)
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_source,'AmberTools','src'),message=message)
+        command = "{amber_root}/{amber_source}/AmberTools/src/configure_openmpi -prefix /app/local -np {ncpus} {compiler}".format(ncpus=self.config.ncpus,amber_root=self.amber_root,amber_source=self.amber_source,compiler=self.image.compiler)
+        self.singularity_exec(command,pwd='/app',message=message)
 
     def appReport(self):
         # copy create_report.py in the target installation directory
-        src='create_json_report.py'
+        src='utilities/create_json_report.py'
         target='{amber_root}/{amber_source}/build'.format(amber_root=self.image.work_dir,amber_source=self.amber_source)
         shutil.copy(src,target)
         message = "Create report..."
@@ -489,7 +530,7 @@ class Application(object):
     def appCudaExec(self,args):
         self.appExec(args,nvidia=True)
 
-rootparser.set_defaults(avail=None,list=None,build=None,container=None)
+rootparser.set_defaults(avail=None,list=None,build=None,save=None,container=None)
 args = rootparser.parse_args()
 # go to the directory where amberity is located (everything is relative to there)
 os.chdir(os.path.normpath(os.path.abspath(os.path.dirname(__file__))))
@@ -548,6 +589,15 @@ elif args.build is not None:
     elif args.docker:
         docker_target = images.find(args.build[0],'docker')
         docker.build(docker_target)
+elif args.save is not None:
+    # amberity image save <...>
+    if args.docker is False and args.singularity is False:
+        raise RuntimeError("\na container image should be provided using either the --docker or --singularity argument")
+    elif args.singularity:
+        raise RuntimeError("\nsave command is not supported with singularity")
+    elif args.docker:
+        docker_target = images.find(args.save[0],'docker')
+        docker.save(docker_target)
 elif args.avail is not None:
     # amberity image avail <...>
     if args.avail == 'all':
@@ -556,7 +606,8 @@ elif args.avail is not None:
             process=True
             if args.docker and image.type != 'docker': process=False
             if args.singularity and image.type != 'singularity': process=False
-            if process and exists: print(image.name)
+           #if process and exists: print(image.name)
+            if process: print(image.name)
     else:
         for image in images:
             if image.name == args.avail:
