@@ -8,13 +8,33 @@ image="$1"
 action="$2"
 afterjobid="$3"
 
+mydir=$(dirname $(readlink -f $0))
+
 if [ -z "$image" ]; then
     echo "Error: no image given"
+    echo "Choose 'all', 'all_cpu', 'all_gpu' images, or one image among:"
+    echo "   $(make cpuimages)"
+    echo "   $(make gpuimages)"
     exit 1
 fi
 
 if [ -z "$action" ]; then
     echo "Error: no command given"
+    echo "Choose one command among:"
+    cat << END
+  - clone
+  - update
+  - clean
+  - cmake
+  - build
+  - test.serial
+  - test.openmp
+  - test.parallel
+  - test.cuda.serial
+  - install.openmpi
+  - image
+  - all (clone clean cmake build test.openmp test.parallel test.serial)
+END
     exit 1
 fi
 
@@ -25,7 +45,8 @@ function submit
 {
     jobid=""
     tmpf=$(mktemp)
-    envsubst < slurm-template-container.sh > $tmpf
+    mkdir -p logs/$image logs/slurm
+    envsubst < $mydir/slurm-template-container.sh > $tmpf
     if [ -z "$afterjobid" ]; then
       #echo "submit $image $action"
        jobid=$(sbatch $tmpf | awk '{print $4}')
@@ -41,7 +62,8 @@ function build_image
 {
     jobid=""
     tmpf=$(mktemp)
-    envsubst < slurm-template-image.sh > $tmpf
+    mkdir -p logs/$image logs/slurm
+    envsubst < $mydir/slurm-template-image.sh > $tmpf
     echo "submit $image $action"
     sbatch $tmpf
     /bin/rm $tmpf
@@ -51,13 +73,13 @@ function do_action
 {
   action=$1
   case "$action" in
-    ( "clone" | "update" | "clean" | "cmake" )
+    ( "clone" | "update" | "clean" )
       export ntasks=1
       export ncores=2
       export ngpus=0
       submit
       ;;
-    ( "build" )
+    ( "build" | "cmake" )
       export ntasks=1
       export ncores=8
       export ngpus=0
@@ -77,7 +99,7 @@ function do_action
       ;;
     ( "test.parallel" )
       export ntasks=1
-      export ncores=4
+      export ncores=2
       export ngpus=0
       submit
       ;;
@@ -87,15 +109,21 @@ function do_action
       export ngpus=1
       submit
       ;;
-    ( "image" )
+    ( "install.openmpi" )
       export ntasks=1
       export ncores=8
+      export ngpus=0
+      submit
+      ;;
+    ( "image" )
+      export ntasks=1
+      export ncores=24
       export ngpus=0
       build_image
       ;;
     ( "all" )
       export afterjobid=""
-      for i in clone clean cmake build test.openmp test.serial
+      for i in clone clean cmake build test.openmp test.serial test.parallel
       do
           afterjobid=$(do_action $i)
       done
@@ -105,15 +133,15 @@ function do_action
 
 case "$image" in
   ( "all" )
-    for image in $(make cpuimages)
-    do
-        export ngpus=0
-        echo $image
-        do_action $action
-    done
     for image in $(make gpuimages)
     do
         export ngpus=1
+        echo $image
+        do_action $action
+    done
+    for image in $(make cpuimages)
+    do
+        export ngpus=0
         echo $image
         do_action $action
     done

@@ -6,14 +6,15 @@
 #SBATCH -c ${ncores}
 #SBATCH --gres=gpu:${ngpus}
 #SBATCH -J ${action}-${image}
-#SBATCH -o logs/slurm-${image}-${action}
-#SBATCH -e logs/slurm-${image}-${action}
+#SBATCH -o logs/slurm/${image}-${action}
+#SBATCH -e logs/slurm/${image}-${action}
 
 echo "Running on: " $(hostname)
 echo "Image: "${image}
 pwd
 
 echo "Starting: $(date +%F/%T)"
-./amberity -l logs/${image}-${action} --singularity container ${image} ${action} ${args}
+mkdir -p logs/${image}
+./amberity -l logs/${image}/${action} --singularity container ${image} ${action} ${args}
 echo "Finished: $(date +%F/%T)"
 sleep 2

@@ -11,8 +11,8 @@ RUN  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
         flex bison patch wget \
         bc xorg-dev libbz2-dev \
         rsync openssh-client \
-        libchemistry-mol-perl zlib1g zlib1g-dev \
-        libboost-all-dev
+        libchemistry-mol-perl zlib1g zlib1g-dev
+       #libboost-all-dev
 
 # reconfigure dash to bash
 #RUN ln -sf /bin/bash /bin/sh

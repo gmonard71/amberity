@@ -9,8 +9,6 @@ import yaml
 import datetime
 
 miniconda_container_location='/usr/local/miniconda'
-amber_version='ambertools25'
-amber_source=amber_version+'_src'
 do_parallel_setup = {
   'openmpi': 'mpirun -np 2 --mca btl self,tcp --oversubscribe',
   'intelmpi': 'mpirun -np 2',
@@ -167,6 +165,7 @@ class Config(Global):
         self.images_root='images'
         self.work_dir='work/amber21'
         self.source_dir='source/amber21'
+        self.amber_version='amber21'
         self.compiler='gnu'
         self.openmp=False
         self.mpi=False
@@ -260,6 +259,8 @@ class Application(object):
         if not os.path.exists(self.image.path):
             raise RuntimeError('\nImage "{}" does not exit, please build the image first'.format(self.image.name))
         self.amber_root = '/app'
+        self.amber_version = self.config.amber_version
+        self.amber_source = self.config.amber_version+'_src'
         if logfile is not None:
             logdir=os.path.dirname(os.path.abspath(logfile))
             if not args.dry_run:
@@ -360,27 +361,27 @@ class Application(object):
         message = 'Cloning...'
         if not os.path.exists(self.image.work_dir) and not args.dry_run: os.makedirs(self.image.work_dir)
         if self.image.type == 'singularity':
-            self.singularity_exec('mkdir -p {amber_root}/{amber_source}'.format(amber_root=self.amber_root,amber_source=amber_source))
-            self.singularity_exec('rsync -a --delete --exclude=.git /src/. {amber_root}/{amber_source}'.format(amber_root=self.amber_root,amber_source=amber_source),message=message)
+            self.singularity_exec('mkdir -p {amber_root}/{amber_source}'.format(amber_root=self.amber_root,amber_source=self.amber_source))
+            self.singularity_exec('rsync -a --delete --exclude=.git /src/. {amber_root}/{amber_source}'.format(amber_root=self.amber_root,amber_source=self.amber_source),message=message)
 
     def appUpdate(self):
         message = "Updating amber..."
         if self.config.proxy is None:
-            self.singularity_exec('./update_amber --update',pwd=os.path.join(self.amber_root,amber_source),message=message)
+            self.singularity_exec('./update_amber --update',pwd=os.path.join(self.amber_root,self.amber_source),message=message)
         else:
-            self.singularity_exec('./update_amber --proxy={proxy} --update'.format(proxy=self.config.proxy),pwd=os.path.join(self.amber_root,amber_source),message=message)
+            self.singularity_exec('./update_amber --proxy={proxy} --update'.format(proxy=self.config.proxy),pwd=os.path.join(self.amber_root,self.amber_source),message=message)
 
     def appClean(self):
         message = 'Cleaning build directory...'
-        self.singularity_exec('./clean_build -f',pwd=os.path.join(self.amber_root,amber_source,'build'),message=message)
+        self.singularity_exec('./clean_build -f',pwd=os.path.join(self.amber_root,self.amber_source,'build'),message=message)
 
     def appCmake(self):
         message = "Configuring with cmake..."
         command = ''
        #command = 'bash -c "'
-       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=amber_version)
+       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=self.amber_version)
        #command += 'export LD_LIBRARY_PATH={miniconda_dir}/lib:$LD_LIBRARY_PATH && '.format(miniconda_dir=miniconda_container_location)
-        command += './configure_cmake.py --source {amber_root}/{amber_source} --prefix {amber_root}/{amber_version}'.format(amber_root=self.amber_root,amber_source=amber_source,amber_version=amber_version)
+        command += './configure_cmake.py --source {amber_root}/{amber_source} --prefix {amber_root}/{amber_version}'.format(amber_root=self.amber_root,amber_source=self.amber_source,amber_version=self.amber_version)
         command += " --no-reaxff"
         command += " --no-check-updates"
         command += " --no-apply-updates"
@@ -394,13 +395,13 @@ class Application(object):
                 raise RuntimeError("\nno python executable in '{}'".format(self.config.miniconda_dir))
             command += " --no-miniconda --with-python {}".format(os.path.join(miniconda_container_location,'bin','python'))
        #command +='"'
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source,'build'),message=message)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_source,'build'),message=message)
 
     def appConfigure(self):
         message = "Configuring with configure..."
         command = ''
        #command = 'bash -c "'
-       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=amber_version)
+       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=self.amber_version)
        #command += 'export LD_LIBRARY_PATH={miniconda_dir}/lib:$LD_LIBRARY_PATH && '.format(miniconda_dir=miniconda_container_location)
         command += "./configure"
         if self.image.openmp: command += " -openmp"
@@ -408,67 +409,67 @@ class Application(object):
         if self.image.cuda: command += " -cuda"
         command += " {compiler}".format(compiler=self.image.compiler)
        #command +='"'
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source),message=message)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_source),message=message)
 
     def appBuild(self):
         message = "Building after cmake..."
         command = "make VERBOSE=1 -j{ncpus} install".format(ncpus=self.config.ncpus)
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source,'build'),message=message)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_source,'build'),message=message)
 
     def appOldBuild(self):
         message = "Building after configure..."
         command = ''
        #command = 'bash -c "'
-       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=amber_version)
+       #command += 'export PATH={amber_root}/{amber_version}/bin:$PATH && '.format(amber_root=self.amber_root,amber_version=self.amber_version)
        #command += 'export LD_LIBRARY_PATH={miniconda_dir}/lib:$LD_LIBRARY_PATH && '.format(miniconda_dir=miniconda_container_location)
         command += "make -j{ncpus} install".format(ncpus=self.config.ncpus)
        #command +='"'
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source),message=message)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_source),message=message)
 
     def appTestSerial(self):
         message = "Testing serial..."
         command = "bash -c 'source amber.sh; make test.serial'"
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_version),message=message)
 
     def appTestOpenMP(self):
         message = "Testing openmp..."
         command = "bash -c 'source amber.sh; make test.openmp'"
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_version),message=message)
 
     def appTestCudaSerial(self):
         message = "Testing cuda serial..."
         command = "bash -c 'source amber.sh; make test.cuda.serial'"
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message,nvidia=True)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_version),message=message,nvidia=True)
 
     def appTestParallel(self):
         message = "Testing mpi..."
         command = """bash -c 'source amber.sh; export DO_PARALLEL="{do_parallel}"; make test.parallel'""".format(do_parallel=do_parallel_setup[self.image.do_parallel])
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_version),message=message)
 
     def appTestCudaParallel(self):
         message = "Testing cuda parallel..."
         command = """bash -c 'source amber.sh; export DO_PARALLEL="{do_parallel}"; make test.cuda.parallel'""".format(do_parallel=do_parallel_setup[self.image.do_parallel])
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message,nvidia=True)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_version),message=message,nvidia=True)
 
     def appInstallOpenMPI(self):
         message = "Install openmpi..."
-        command = "./configure_openmpi -prefix {amber_root}/{amber_version} -np {ncpus} {compiler}".format(ncpus=self.config.ncpus,amber_root=self.amber_root,amber_version=amber_version,compiler=self.image.compiler)
-        self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_source,'AmberTools','src'),message=message)
+        command = "./configure_openmpi -prefix {amber_root}/{amber_version} -np {ncpus} {compiler}".format(ncpus=self.config.ncpus,amber_root=self.amber_root,amber_version=self.amber_version,compiler=self.image.compiler)
+        self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_source,'AmberTools','src'),message=message)
 
     def appReport(self):
         # copy create_report.py in the target installation directory
         src='create_json_report.py'
-        target='{amber_root}/{amber_source}/build'.format(amber_root=self.image.work_dir,amber_source=amber_source)
+        target='{amber_root}/{amber_source}/build'.format(amber_root=self.image.work_dir,amber_source=self.amber_source)
         shutil.copy(src,target)
         message = "Create report..."
         command = "bash -c 'source {amber_root}/{amber_version}/amber.sh;{amber_root}/{amber_source}/build/create_json_report.py {image} {amber_root}/{amber_source} {amber_root}/{amber_version} {compiler}'".format(image=self.image.name,
             amber_root=self.amber_root,
-            amber_source=amber_source,
-            amber_version=amber_version,
+            amber_source=self.amber_source,
+            amber_version=self.amber_version,
             compiler=self.image.compiler)
        #command = "ls -l {amber_root}/{amber_version}/bin/create_report.py".format(amber_root=self.amber_root,
-       #    amber_version=amber_version)
-       #self.singularity_exec(command,pwd=os.path.join(self.amber_root,amber_version),message=message)
+       #    amber_version=self.amber_version)
+       #self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_version),message=message)
         self.singularity_exec(command,message=message)
 
     def appShell(self,nvidia=False):

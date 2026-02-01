@@ -9,42 +9,40 @@ Workflow:
 import json
 import sys
 import yaml
+import argparse
+
+def parser():
+    parser = argparse.ArgumentParser(description='Create a report page in markdown from log files.')
+    parser.add_argument('--header', type=str, help='Markdown header file', required=False)
+    parser.add_argument('--footer', type=str, help='Markdown footer file', required=False)
+    parser.add_argument('logs', nargs='+', help='List of logs to process')
+
+    args = parser.parse_args()
+
+    return args
+
+args = parser()
+
 
 content = []
-for fn in sys.argv[1:]:
+for fn in args.logs:
    #print(fn)
     with open(fn,'r') as fp:
         data = json.load(fp)
         content.append(data)
 
+if args.header:
+    with open(args.header,'r') as f: header=f.read()
+else:
+    header=""
+
+if args.footer:
+    with open(args.footer,'r') as f: footer=f.read()
+else:
+    footer=""
+
 def markdown():
-#    print("""# AmberTools21 + Amber20
-#
-#This page reports Amber configuring+building+testing using Singularity containers.
-#
-#Versions:
-#- Amber20: update.{}
-#- AmberTools21: update.{}
-#
-#Version: 
-#  - commit 
-#  - Merge: 
-#  - Author: 
-#  - Date:   
-### Installation using cmake
-#
-#""".format(content[0]['Amber20'],content[0]['AmberTools21']))
-    print("""# Amber master branch
-
-This page reports Amber configuring+building+testing using Singularity containers.
-
-Version:
-  - Amber24
-
-## Installation using cmake
-
-""")
-
+    print("## Installation using cmake\n")
     print("| Container OS | cmake_configure | install | # bin files | # installed files |")
     print("| ------------ | --------------- | ------- | ----------- | ----------------- |")
     for image in content:
@@ -99,7 +97,7 @@ results are displayed as **passed**/[+ failed +]/[- errors -]
     print("| Container OS | at_cuda_serial | amber_cuda_serial | amber_cuda_parallel |")
     print("| ------------ | -------------- | ----------------- | ------------------- |")
     for image in content:
-        if 'at_cuda_serial' not in image['test']: continue # this is not a GPU container
+        if 'at_cuda_serial' not in image['test'] and 'amber_cuda_serial' not in image['test']: continue # this is not a GPU container
         name=image['image']
         line = "| {name:23} | {at_cuda_serial} | {amber_cuda_serial} | {amber_cuda_parallel} |"
         fmt = {}
@@ -134,4 +132,6 @@ Note:
         line = "| {name:23} | {cmake} | {python} | {compiler} | {mpi} |".format(**details)
         print(line)
 
+print(header)
 markdown()
+print(footer)

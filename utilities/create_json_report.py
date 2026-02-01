@@ -146,6 +146,7 @@ def test_check(test_dir):
             for line in f:
                 if 'file comparisons passed' in line: passed = line.split()[0]
                 if 'file comparisons failed' in line: failed = line.split()[0]
+                if 'tests experienced an error' in line: errors = line.split()[0]
                 if 'tests experienced errors' in line: errors = line.split()[0]
             return {'passed': passed,'failed': failed,'error': errors}
     return 'N/A'
