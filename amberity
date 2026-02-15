@@ -58,7 +58,7 @@ imageAvail_arg  = imageAvail.add_argument('avail',default='all',nargs='?')
 # Container subsection
 containerSection = rootSubsections.add_parser('container',help='Container management')
 containerName = containerSection.add_argument('container',nargs=1)
-containerAction = containerSection.add_argument('actions',nargs='+',help="valid actions: help, shell, cudashell, exec, cudaexec, clone, update, clean, cmake, configure ('old' configure setup), build|install, build_configure|install_configure (build after configure), test.serial, test.openmp, test.parallel|test.mpi, test.cuda.serial, test.cuda.parallel, install.openmpi, report")
+containerAction = containerSection.add_argument('actions',nargs='+',help="valid actions: help, shell, cudashell, exec, cudaexec, clone, update, clean, cmake, configure ('old' configure setup), build|install, build_configure|install_configure (build after configure), test.serial, test.openmp, test.parallel|test.mpi, test.cuda.serial, test.cuda.parallel, install.openmpi, clone.openmpi, report")
 
 #containerSubsections = containerSection.add_subparsers(metavar='')
 #containerAction = containerSubsections.add_parser('actions',help='list of actions')
@@ -197,6 +197,7 @@ class Config(Global):
         self.images_root='images'
         self.work_dir='work/amber21'
         self.source_dir='source/amber21'
+        self.openmpi_dir=''
         self.amber_version='amber21'
         self.pmemd_only=False
         self.compiler='gnu'
@@ -332,6 +333,7 @@ class Application(object):
                         'test.cuda.serial':  self.appTestCudaSerial,
                         'test.cuda.parallel':  self.appTestCudaParallel,
                         'install.openmpi': self.appInstallOpenMPI,
+                        'clone.openmpi': self.appCloneOpenMPI,
                         'report': self.appReport,
                        }
         if action not in valid_action:
@@ -358,6 +360,7 @@ class Application(object):
 - test.cuda.serial
 - test.cuda.parallel
 - install.openmpi
+- clone.openmpi
 - report
 """)
 
@@ -492,6 +495,13 @@ class Application(object):
         command = """bash -c 'source amber.sh; export DO_PARALLEL="{do_parallel}"; make test.cuda.parallel'""".format(do_parallel=do_parallel_setup[self.image.do_parallel])
         self.singularity_exec(command,pwd=os.path.join(self.amber_root,self.amber_version),message=message,nvidia=True)
 
+    def appCloneOpenMPI(self):
+        message = 'Cloning MPI Source...'
+        if not os.path.exists(self.image.work_dir) and not args.dry_run: os.makedirs(self.image.work_dir)
+        if self.image.type == 'singularity':
+            self.singularity_exec('mkdir -p {amber_root}/{amber_source}'.format(amber_root=self.amber_root,amber_source=self.amber_source))
+            self.singularity_exec('rsync -av --delete {openmpi_dir} /app '.format(openmpi_dir=self.config.openmpi_dir),message=message)
+
     def appInstallOpenMPI(self):
         message = "Install openmpi..."
         command = "{amber_root}/{amber_source}/AmberTools/src/configure_openmpi -prefix /app/local -np {ncpus} {compiler}".format(ncpus=self.config.ncpus,amber_root=self.amber_root,amber_source=self.amber_source,compiler=self.image.compiler)
@@ -499,7 +509,7 @@ class Application(object):
 
     def appReport(self):
         # copy create_report.py in the target installation directory
-        src='utilities/create_json_report.py'
+        src='./utilities/create_json_report.py'
         target='{amber_root}/{amber_source}/build'.format(amber_root=self.image.work_dir,amber_source=self.amber_source)
         shutil.copy(src,target)
         message = "Create report..."
