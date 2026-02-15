@@ -13,6 +13,10 @@ echo "Running on: " $(hostname)
 echo "Image: "${image}
 pwd
 
+if [ -e /dev/nvidia0 ]; then
+nvidia-smi
+fi
+
 echo "Starting: $(date +%F/%T)"
 mkdir -p logs/${image}
 ./amberity -l logs/${image}/${action} --singularity container ${image} ${action} ${args}

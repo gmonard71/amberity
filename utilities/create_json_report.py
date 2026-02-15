@@ -107,6 +107,7 @@ if os.path.exists(cmake_log_path):
     with open(cmake_log_path,'rb') as f:
        #lines = f.readlines()
         for line in f:
+            if b'Configuring incomplete, errors occurred!' in line: break
             if b'Cleaning source directories.\n' in line: specs['check'] = {'cmake': True}
 
 # Has build succeeded
