@@ -1,0 +1,8 @@
+RUN mkdir /.lyx && chmod a+rwx /.lyx
+
+RUN apt-get update && \
+    apt-get install -y texlive-latex-recommended texlive-fonts-recommended chktex \
+                       preview-latex-style dvipng imagemagick psutils gv \
+                       texlive-latex-extra git-core texlive-font-utils \
+                       texlive-extra-utils texlive-fonts-extra make doxygen && \
+    apt-get install -y lyx

@@ -95,6 +95,8 @@ class Docker(Global):
         if not os.path.exists('.source') and not args.dry_run: os.makedirs('.source')
         update=False
         dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
+        if target.name.endswith('-lyx'):
+            dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/lyx', 'template/user']
         if not os.path.exists(target.path):
             update=True
         else:

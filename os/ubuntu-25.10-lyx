@@ -1,0 +1,13 @@
+# Special LyX container
+# ubuntu-25.10 provides LyX 2.4.*
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}ubuntu:25.10
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Paris
+RUN  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+     apt-get update && apt-get install -y \
+        python3 \
+        make \
+        patch wget \
+        rsync openssh-client
