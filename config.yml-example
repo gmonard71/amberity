@@ -27,6 +27,13 @@ work_dir:
 
 # source code for Amber (will be cloned into work_dir for each container)
 source_dir:
+amber_version: ambertools26     # or pmemd26
+pmemd_only: false               # true if pmemd source code
+miniconda: true                 # false if pmemd (=do not install miniconda)
+
+# source code for OpenMPI 
+# (to clone and build with clone.openmpi and install.openmpi actions, respectively)
+openmpi_dir:
 
 # miniconda install, if exists:
 #miniconda_dir:

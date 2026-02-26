@@ -31,6 +31,7 @@ if [ -z "$action" ]; then
   - test.openmp
   - test.parallel
   - test.cuda.serial
+  - clone.openmpi
   - install.openmpi
   - image
   - all (clone clean cmake build test.openmp test.parallel test.serial)
@@ -73,7 +74,7 @@ function do_action
 {
   action=$1
   case "$action" in
-    ( "clone" | "update" | "clean" )
+    ( "clone" | "update" | "clean" | "clone.openmpi" )
       export ntasks=1
       export ncores=2
       export ngpus=0
