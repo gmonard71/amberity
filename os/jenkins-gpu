@@ -1,8 +1,16 @@
-ARG DOCKER_HUB=nvcr.io/
-FROM ${DOCKER_HUB}nvidia/cuda:11.4.3-devel-ubuntu20.04
+#
+# Docker containers are used for Jenkins pipelines to
+# build and test Amber at each merge request
+#
+# The containers are defined at github.com/Amber-MD/common-dockerfiles
+#
+# This one is corresponds to "amberImageTag: ambermd/gpu-build" as defined in /Jenkinsfile
+#
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}nvcr.io/nvidia/cuda:11.4.3-devel-ubuntu20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-    
+
 # take apt-get install list from http://ambermd.org/Installation.php
 RUN mkdir -p /opt/intel && \
     mkdir -p /opt/pgi && \

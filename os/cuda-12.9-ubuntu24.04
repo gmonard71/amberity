@@ -1,0 +1,18 @@
+ARG DOCKER_HUB=""
+FROM ${DOCKER_HUB}nvcr.io/nvidia/cuda:12.9.1-devel-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Paris
+RUN  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+     apt-get update && apt-get install -y \
+        python3 python-is-python3 \
+        tcsh make \
+        gcc gfortran g++ \
+        flex bison patch wget \
+        bc xorg-dev libbz2-dev \
+        rsync openssh-client
+
+# reconfigure dash to bash
+#RUN ln -sf /bin/bash /bin/sh
+
+ENV CUDA_HOME=/usr/local/cuda

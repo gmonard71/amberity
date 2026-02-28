@@ -1,8 +1,16 @@
+#
+# Docker containers are used for Jenkins pipelines to
+# build and test Amber at each merge request
+#
+# The containers are defined at github.com/Amber-MD/common-dockerfiles
+#
+# This one is corresponds to "amberImageTag: ambermd/cpu-build" as defined in /Jenkinsfile
+#
 ARG DOCKER_HUB
 FROM ${DOCKER_HUB}ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-    
+
 # take apt-get install list from http://ambermd.org/Installation.php
 RUN mkdir -p /opt/intel && \
     mkdir -p /opt/pgi && \
@@ -24,4 +32,4 @@ ENV PATH=/opt/pgi/linux86-64/2018/bin:/opt/pgi/linux86-64/2018/mpi/bin:${PATH}
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/pgi/linux86-64/18.10/lib:/opt/pgi/linux86-64/2018/mpi/lib
 
 # Set up for CUDA if present. If the toolkit is installed, it will be installed to /usr/local/cuda
-#ENV CUDA_HOME=/usr/local/cuda
+ENV CUDA_HOME=/usr/local/cuda

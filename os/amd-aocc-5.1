@@ -1,5 +1,10 @@
 ARG DOCKER_HUB=""
-FROM ${DOCKER_HUB}ubuntu:22.04
+FROM ${DOCKER_HUB}ubuntu:26.04
+
+ARG AMD_MAJOR=aocc-5-1
+ARG AMD_TAR=aocc-compiler-5.1.0.tar
+ARG AMD_URL=https://download.amd.com/developer/eula/aocc
+ARG AMD_PKG=${AMD_URL}/${AMD_MAJOR}/${AMD_TAR}
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Paris
@@ -9,22 +14,15 @@ RUN  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
         tcsh make \
         gcc gfortran g++ \
         flex bison patch wget \
-        bc xorg-dev libbz2-dev rsync openssh-client
+        bc xorg-dev libbz2-dev rsync openssh-client \
+        libncurses5-dev xz-utils
 
-# reconfigure dash to bash
-#RUN ln -sf /bin/bash /bin/sh
+RUN cd /tmp && \
+    wget -O /tmp/${AMD_TAR} ${AMD_PKG} && \
+    tar xf /tmp/${AMD_TAR} -C /opt && \
+    cd /opt && mv aocc-* aocc
 
-# specific for AMD AOCC
-RUN apt-get install -y libncurses5-dev
-
-# You first need to provide the aocc compiler in the .source directory
-# (from which it will be copied using the following command:)
-COPY aocc-compiler-5.0.0_1_amd64.deb /tmp
-
-RUN dpkg -i /tmp/aocc-compiler-5.0.0_1_amd64.deb && \
-    /bin/rm -f /tmp/aocc-compiler-5.0.0_1_amd64.deb
-
-ENV AOCC_INS_DIR="/opt/AMD/aocc-compiler-5.0.0"
+ENV AOCC_INS_DIR="/opt/aocc"
 ENV PATH=$AOCC_INS_DIR/bin:$AOCC_INS_DIR/share/opt-viewer:$PATH
 ENV LIBRARY_PATH=$AOCC_INS_DIR/lib:$AOCC_INS_DIR/lib32:/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib32:/usr/lib:$LIBRARY_PATH
 ENV LD_LIBRARY_PATH=$AOCC_INS_DIR/ompd:$AOCC_INS_DIR/lib:$AOCC_INS_DIR/lib32:/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib32:/usr/lib:$LD_LIBRARY_PATH
