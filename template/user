@@ -1,4 +1,4 @@
-COPY amber-image-release /etc
+#COPY amber-image-release /etc
 
 RUN groupadd -g 1096 -r amber && useradd -u 1096 --no-log-init -r -g amber amber
 
