@@ -88,27 +88,21 @@ class Docker(Global):
         self.save_cmd = 'save'
 
     def build(self,target):
-        # mkdir .source
         # mkdir $(dirname $(path))
-        build_dir = os.path.dirname(os.path.abspath(target.path))
+        build_dir = os.path.dirname(target.abspath)
         if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
-        if not os.path.exists('.source') and not args.dry_run: os.makedirs('.source')
         update=False
         dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
-        if not os.path.exists(target.path):
+        if not os.path.exists(target.abspath):
             update=True
         else:
             for depend in dependencies:
-                if os.path.getmtime(depend) > os.path.getmtime(target.path):
-                   #print("{} > {}".format(depend,target.path))
+                if os.path.getmtime(depend) > os.path.getmtime(target.abspath):
+                   #print("{} > {}".format(depend,target.abspath))
                     update=True
         if update:
-            # save the name of the container (will be later present as /etc/amber-image-release)
-            if not args.dry_run:
-                with open(os.path.join('.source','amber-image-release'),'w') as f:
-                    f.write("{}\n".format(target.name))
             # create the container
-            command1="cat {dependencies} | {docker} {build_cmd} -t amber-{name}:latest -f- .source".format(dependencies=" ".join(dependencies),
+            command1="cat {dependencies} | {docker} {build_cmd} -t amber-{name}:latest -".format(dependencies=" ".join(dependencies),
                 docker=self.path,
                 build_cmd=self.build_cmd,
                 name=target.name)
@@ -121,43 +115,41 @@ class Docker(Global):
             command2="{docker} {save_cmd} amber-{name}:latest | lbzip2 > {path}".format(docker=self.path,
                 save_cmd=self.save_cmd,
                 name=target.name,
-                path=target.path)
+                path=target.abspath)
             if args.verbose: print("Executing:\n   {}".format(command2))
             if args.dry_run:
                 print(command2)
             else:
                 subprocess.run(command2,check=True,shell=True)
         else:
-            print("target {} is up to date".format(target.path))
+            print("target {} is up to date".format(target.abspath))
 
     def save(self,target):
-        # mkdir .source
         # mkdir $(dirname $(path))
-        build_dir = os.path.dirname(os.path.abspath(target.path))
+        build_dir = os.path.dirname(target.abspath)
         if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
-        if not os.path.exists('.source') and not args.dry_run: os.makedirs('.source')
         update=False
         dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
-        if not os.path.exists(target.path):
+        if not os.path.exists(target.abspath):
             update=True
         else:
             for depend in dependencies:
-                if os.path.getmtime(depend) > os.path.getmtime(target.path):
-                   #print("{} > {}".format(depend,target.path))
+                if os.path.getmtime(depend) > os.path.getmtime(target.abspath):
+                   #print("{} > {}".format(depend,target.abspath))
                     update=True
         if update:
             # save the container to a file
             command2="{docker} {save_cmd} amber-{name}:latest | lbzip2 > {path}".format(docker=self.path,
                 save_cmd=self.save_cmd,
                 name=target.name,
-                path=target.path)
+                path=target.abspath)
             if args.verbose: print("Executing:\n   {}".format(command2))
             if args.dry_run:
                 print(command2)
             else:
                 subprocess.run(command2,check=True,shell=True)
         else:
-            print("target {} is up to date".format(target.path))
+            print("target {} is up to date".format(target.abspath))
 
 class Singularity(Global):
     def __init__(self):
@@ -168,21 +160,21 @@ class Singularity(Global):
 
     def build(self,target):
         # mkdir $(dirname $(path))
-        build_dir = os.path.dirname(os.path.abspath(target.path))
+        build_dir = os.path.dirname(target.abspath)
         if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
         update=False
         dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
-        if not os.path.exists(target.path):
+        if not os.path.exists(target.abspath):
             update=True
         else:
             for depend in dependencies:
-                if os.path.getmtime(depend) > os.path.getmtime(target.path):
-                   #print("{} > {}".format(depend,target.path))
+                if os.path.getmtime(depend) > os.path.getmtime(target.abspath):
+                   #print("{} > {}".format(depend,target.abspath))
                     update=True
         if update:
             commands="{singularity} {build_cmd} {sif} docker-daemon://amber-{name}:latest".format(singularity=self.path,
                 build_cmd=self.build_cmd,
-                sif=target.path,
+                sif=target.abspath,
                 name=target.name)
             if args.verbose: print("Executing:\n   {}".format(commands))
             if args.dry_run:
@@ -190,7 +182,7 @@ class Singularity(Global):
             else:
                 subprocess.run(commands,check=True,shell=True)
         else:
-            print("target {} is up to date".format(target.path))
+            print("target {} is up to date".format(target.abspath))
 
 class Config(Global):
     def __init__(self):
@@ -235,10 +227,10 @@ class Image(Global):
 
     def check(self):
         # check existence, date of creation and size (if any)
-        if os.path.exists(self.path):
+        if os.path.exists(self.abspath):
             exists=True
-            date =  datetime.datetime.fromtimestamp(os.path.getctime(self.path)).strftime('%Y-%m-%d %H:%M:%S')
-            size = os.path.getsize(self.path)
+            date =  datetime.datetime.fromtimestamp(os.path.getctime(self.abspath)).strftime('%Y-%m-%d %H:%M:%S')
+            size = os.path.getsize(self.abspath)
             unit='B'
             if size > 1024: size, unit = size/1024, 'KB'
             if size > 1024: size, unit = size/1024, 'MB'
@@ -250,11 +242,11 @@ class Image(Global):
             size=""
         update=False
         dependencies = [ 'os/{}'.format(self.name), 'template/cmake', 'template/user']
-        if not os.path.exists(self.path):
+        if not os.path.exists(self.abspath):
             update=True
         else:
             for depend in dependencies:
-                if os.path.getmtime(depend) > os.path.getmtime(self.path):
+                if os.path.getmtime(depend) > os.path.getmtime(self.abspath):
                     update=True
         return exists, date, size, update
 
@@ -263,6 +255,7 @@ class Images(list):
         for image_spec in config_file['images']:
             image = Image(defaultConfig=config_file)
             image.fromYaml(image_spec)
+            image.abspath=os.path.join(config_file['images_root'],image.path)
             self += [image]
     def find(self,name,itype):
         """find a container named 'name' for type 'itype' (docker or singularity)"""
