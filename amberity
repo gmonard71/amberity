@@ -286,7 +286,7 @@ class Application(object):
         self.docker = docker
         self.singularity = singularity
         self.image.work_dir = os.path.join(self.config.work_dir,self.image.name)
-        if not os.path.exists(self.image.path):
+        if not os.path.exists(self.image.abspath):
             raise RuntimeError('\nImage "{}" does not exit, please build the image first'.format(self.image.name))
         self.amber_root = '/app'
         self.amber_version = self.config.amber_version
@@ -365,7 +365,7 @@ class Application(object):
         commands += "  --bind {source_dir}:/src".format(source_dir=self.config.source_dir)
         commands += "  --bind {work_dir}:{amber_root}".format(work_dir=self.image.work_dir,amber_root=self.amber_root)
         if self.config.miniconda_dir is not None: commands += "  --bind {miniconda_dir}:{miniconda_local}".format(miniconda_dir=self.config.miniconda_dir,miniconda_local=miniconda_container_location)
-        commands += " {sif}".format(sif=self.image.path)
+        commands += " {sif}".format(sif=self.image.abspath)
         commands += " {thecommand}".format(thecommand=thecommand)
        #if args.verbose: print("Executing:\n   {}".format(commands))
         if args.verbose and message is not None: print(message)
@@ -375,13 +375,13 @@ class Application(object):
             subprocess.run(commands,check=True,shell=True,stdout=self.log,stderr=self.logerr)
 
     def singularity_shell(self,message=None,nvidia=False):
-        commands = "{singularity}".format(singularity=self.singularity.path)
+        commands = "{singularity}".format(singularity=self.singularity.abspath)
         commands += " {shell_cmd}".format(shell_cmd=self.singularity.shell_cmd)
         if nvidia: commands += " --nv"
         commands += "  --bind {source_dir}:/src".format(source_dir=self.config.source_dir)
         commands += "  --bind {work_dir}:{amber_root}".format(work_dir=self.image.work_dir,amber_root=self.amber_root)
         if self.config.miniconda_dir is not None: commands += "  --bind {miniconda_dir}:{miniconda_local}".format(miniconda_dir=self.config.miniconda_dir,miniconda_local=miniconda_container_location)
-        commands += " {sif}".format(sif=self.image.path)
+        commands += " {sif}".format(sif=self.image.abspath)
        #if args.verbose: print("Executing:\n   {}".format(commands))
         if args.verbose and message is not None: print(message)
         if args.dry_run:
