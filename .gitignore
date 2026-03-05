@@ -2,7 +2,6 @@ config.yml
 # container images
 images
 logs/
-.source/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
