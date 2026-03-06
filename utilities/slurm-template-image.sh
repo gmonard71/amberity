@@ -10,14 +10,9 @@
 
 echo "Running on: " $(hostname)
 echo "Image: "${image}
-pwd
-
-id
-newgrp docker
-id
 
 echo "Starting: $(date +%F/%T)"
-mkdir -p logs/${image}
-./amberity -l logs/${image}/${action} --singularity image build ${image}
+mkdir -p $(pwd)/logs/${image}
+amberity -l $(pwd)/logs/${image}/${action} --singularity image build ${image}
 echo "Finished: $(date +%F/%T)"
 sleep 2

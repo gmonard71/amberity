@@ -375,7 +375,7 @@ class Application(object):
             subprocess.run(commands,check=True,shell=True,stdout=self.log,stderr=self.logerr)
 
     def singularity_shell(self,message=None,nvidia=False):
-        commands = "{singularity}".format(singularity=self.singularity.abspath)
+        commands = "{singularity}".format(singularity=self.singularity.path)
         commands += " {shell_cmd}".format(shell_cmd=self.singularity.shell_cmd)
         if nvidia: commands += " --nv"
         commands += "  --bind {source_dir}:/src".format(source_dir=self.config.source_dir)

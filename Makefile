@@ -1,5 +1,5 @@
 
-AMBERITY=./amberity --singularity
+AMBERITY=amberity --singularity
 CONFIG_YML=config.yml
 
 IMAGES_ROOT=$(shell yq '.images_root' $(CONFIG_YML))
