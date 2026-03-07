@@ -6,5 +6,7 @@ RUN zypper -n install tcsh \
                       which patch make \
                       libtool flex bison wget \
                       gzip bzip2 bc \
+                      libX11-devel libXt-devel libXext-devel libSM-devel \
+                      zlib-devel libbz2-1 libbz2-devel \
                       python3 rsync openssh hostname
 
