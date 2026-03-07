@@ -1,0 +1,10 @@
+COPY . /opt
+WORKDIR /opt
+RUN export CMAKE=cmake-4.2.3-Linux-x86_64.sh && \
+    export CMAKE_VERSION=v4.2.3 && \
+    if [ ! -e ${CMAKE} ]; then wget https://github.com/Kitware/CMake/releases/download/${CMAKE_VERSION}/${CMAKE}; fi && \
+    chmod +x ${CMAKE} && \
+    ./${CMAKE} --skip-license --prefix=/usr/local && \
+    /bin/rm -f ${CMAKE} && \
+    unset CMAKE_VERSION && \
+    unset CMAKE

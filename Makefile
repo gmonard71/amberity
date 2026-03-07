@@ -56,5 +56,5 @@ clean_report:
 
 # create a wiki page reporting all results
 wiki: report
-	./utilities/create_report_from_json.py --header reports/header.md --footer reports/footer.md $(JSON_REPORTS) > reports/wiki.md
+	create_report_from_json.py --header reports/header.md --footer reports/footer.md $(JSON_REPORTS) > reports/wiki.md
 

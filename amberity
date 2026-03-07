@@ -80,6 +80,13 @@ class Global(object):
         for key in self.__dict__:
             if key in yamlDict: self.__dict__[key] = yamlDict[key]
 
+    def dependencies(self,target_name):
+        if target_name.startswith('cmake-4'):
+            dep = [ 'os/{}'.format(target_name), 'template/cmake-4', 'template/user']
+        else:
+            dep = [ 'os/{}'.format(target_name), 'template/cmake', 'template/user']
+        dep = [ os.path.join(rootdir,x) for x in dep ]
+        return dep
 
 class Docker(Global):
     def __init__(self):
@@ -92,7 +99,7 @@ class Docker(Global):
         build_dir = os.path.dirname(target.abspath)
         if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
         update=False
-        dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
+        dependencies = self.dependencies(target.name)
         if not os.path.exists(target.abspath):
             update=True
         else:
@@ -129,7 +136,7 @@ class Docker(Global):
         build_dir = os.path.dirname(target.abspath)
         if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
         update=False
-        dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
+        dependencies = self.dependencies(target.name)
         if not os.path.exists(target.abspath):
             update=True
         else:
@@ -163,7 +170,7 @@ class Singularity(Global):
         build_dir = os.path.dirname(target.abspath)
         if not os.path.exists(build_dir) and not args.dry_run: os.makedirs(build_dir)
         update=False
-        dependencies = [ 'os/{}'.format(target.name), 'template/cmake', 'template/user']
+        dependencies = self.dependencies(target.name)
         if not os.path.exists(target.abspath):
             update=True
         else:
@@ -241,7 +248,7 @@ class Image(Global):
             date=""
             size=""
         update=False
-        dependencies = [ 'os/{}'.format(self.name), 'template/cmake', 'template/user']
+        dependencies = self.dependencies(self.name)
         if not os.path.exists(self.abspath):
             update=True
         else:
@@ -502,7 +509,7 @@ class Application(object):
 
     def appReport(self):
         # copy create_report.py in the target installation directory
-        src='./utilities/create_json_report.py'
+        src=os.path.join(rootdir,'./utilities/create_json_report.py')
         target='{amber_root}/{amber_source}/build'.format(amber_root=self.image.work_dir,amber_source=self.amber_source)
         shutil.copy(src,target)
         message = "Create report..."
@@ -535,8 +542,8 @@ class Application(object):
 
 rootparser.set_defaults(avail=None,list=None,build=None,save=None,container=None)
 args = rootparser.parse_args()
-# go to the directory where amberity is located (everything is relative to there)
-os.chdir(os.path.normpath(os.path.abspath(os.path.dirname(__file__))))
+
+rootdir=os.path.normpath(os.path.abspath(os.path.dirname(__file__)))
 
 if args.log is None:
     logfile=None
