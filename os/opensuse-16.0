@@ -3,7 +3,7 @@ FROM ${DOCKER_HUB}opensuse/leap:16.0
 
 RUN zypper -n install tcsh \
                       gcc gcc-fortran gcc-c++ \
-                      which patch make \
+                      diff which patch make \
                       libtool flex bison wget \
                       gzip bzip2 bc \
                       libX11-devel libXt-devel libXext-devel libSM-devel \
