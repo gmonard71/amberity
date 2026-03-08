@@ -73,7 +73,7 @@ specs['cmake'] = {'version': cmake_version}
 # Compiler version
 if compiler == 'gnu':
     ret = cmd('gcc --version')
-    compiler_version=ret.stdout.split('\n')[0].split()[-1]
+    compiler_version=ret.stdout.split('\n')[0].split()[-1].replace(')','')
     specs['compiler'] = {'name': 'gcc', 'version': compiler_version }
 if compiler == 'intel':
     ret = cmd('icx -v')
