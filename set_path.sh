@@ -1,6 +1,7 @@
 #!/bin/bash
 
-root_dir=$(dirname "${BASH_SOURCE[0]}")
+AMBERITY_DIR=$(dirname $(readlink -f "${BASH_SOURCE[0]}"))
 
-export PATH=$root_dir:$PATH
-export PATH=$root_dir/utilities:$PATH
+export AMBERITY_DIR
+export PATH=$AMBERITY_DIR:$PATH
+export PATH=$AMBERITY_DIR/utilities:$PATH
