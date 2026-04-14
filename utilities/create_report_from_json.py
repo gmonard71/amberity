@@ -117,19 +117,20 @@ Note:
 - due to some "bad" implementation of MPI on some OSes, MPI is installed locally using the `configure_openmpi` script
 """)
 
-    print("| Container OS | cmake | python(miniconda) | compiler | MPI |")
+    print("| Container OS | cmake | python(OS) / amber.python | compiler | MPI |")
     print("| ------------ | ----- | ----------------- | -------- | ------- |")
     for image in content:
         details={'name': image['image'],
                  'cmake': image['cmake']['version'],
                  'python': image['python']['version'],
+                 'miniconda': image['python']['miniconda'],
                  'compiler': image['compiler']['name']+' '+image['compiler']['version'],
                 }
         if 'mpi' in image: 
             details['mpi']= image['mpi']['name']+' '+image['mpi']['version']
         else:
             details['mpi']= 'N/A'
-        line = "| {name:23} | {cmake} | {python} | {compiler} | {mpi} |".format(**details)
+        line = "| {name:23} | {cmake} | {python} / {miniconda} | {compiler} | {mpi} |".format(**details)
         print(line)
 
 print(header)
