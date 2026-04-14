@@ -65,6 +65,14 @@ specs['os'] = {'name': os_name, 'version': os_version}
 python_version = platform.python_version()
 specs['python'] = {'version': python_version}
 
+# Miniconda version
+try:
+    ret = cmd(f'{amber_install}/bin/amber.python --version')
+    miniconda_version = ret.stdout[:-1].split()[-1]
+except:
+    miniconda_version = 'N/A'
+specs['python']['miniconda'] = miniconda_version
+
 # Cmake version
 ret = cmd('cmake --version')
 cmake_version = ret.stdout.split('\n')[0].split()[-1]
